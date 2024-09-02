@@ -1,4 +1,3 @@
-
 import os
 from data_split import perform_train_test_split
 import numpy as np
@@ -7,8 +6,10 @@ from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, 
-    confusion_matrix, mean_absolute_error, mean_squared_error, r2_score
+    confusion_matrix, mean_absolute_error, mean_squared_error, r2_score,
+    roc_curve, auc
 )
+from sklearn.preprocessing import label_binarize
 
 # Random Forest Classifier
 def train_random_forest_classifier(X_train, y_train):
@@ -46,31 +47,22 @@ def train_logistic_regression_classifier(X_train, y_train):
     model.fit(X_train, y_train)
     return model
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, roc_curve, auc
-from sklearn.preprocessing import label_binarize
-
 def evaluate_model_classifier(model, X_test, y_test):
     y_pred = model.predict(X_test)
     y_prob = model.predict_proba(X_test)  # Probabilities for ROC/AUC
 
-    # Calculate basic metrics
-    accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred, average='weighted')
-    recall = recall_score(y_test, y_pred, average='weighted')
-    f1 = f1_score(y_test, y_pred, average='weighted')
-    conf_matrix = confusion_matrix(y_test, y_pred)
-    
-    print("Accuracy:", accuracy)
-    print("Precision:", precision)
-    print("Recall:", recall)
-    print("F1 Score:", f1)
-    print("Confusion Matrix:\n", conf_matrix)
+    results = {}
+    results["Accuracy"] = accuracy_score(y_test, y_pred)
+    results["Precision"] = precision_score(y_test, y_pred, average='weighted')
+    results["Recall"] = recall_score(y_test, y_pred, average='weighted')
+    results["F1 Score"] = f1_score(y_test, y_pred, average='weighted')
+    results["Confusion Matrix"] = confusion_matrix(y_test, y_pred).tolist()  # Convert to list for better JSON compatibility
     
     # ROC and AUC Calculation
     if len(set(y_test)) == 2:  # Binary classification
         fpr, tpr, _ = roc_curve(y_test, y_prob[:, 1])
         roc_auc = auc(fpr, tpr)
-        print("AUC:", roc_auc)
+        results["AUC"] = roc_auc
         
     else:  # Multiclass classification
         y_test_bin = label_binarize(y_test, classes=range(len(set(y_test))))
@@ -81,29 +73,23 @@ def evaluate_model_classifier(model, X_test, y_test):
             fpr, tpr, _ = roc_curve(y_test_bin[:, i], y_prob[:, i])
             roc_auc_dict[i] = auc(fpr, tpr)
 
-        print("AUC per class:", roc_auc_dict)
+        results["AUC per class"] = roc_auc_dict
 
-    return accuracy, precision, recall, f1, conf_matrix, roc_auc_dict if len(set(y_test)) > 2 else roc_auc
+    return results
 
-
-# Evaluate Regressor Model
 def print_performance_metrics_regressor(model, X_test, y_test):
     y_pred = model.predict(X_test)
-    mse = mean_squared_error(y_test, y_pred)
-    rmse = np.sqrt(mse)
-    mae = mean_absolute_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
     
-    print("Mean Squared Error (MSE):", mse)
-    print("Root Mean Squared Error (RMSE):", rmse)
-    print("Mean Absolute Error (MAE):", mae)
-    print("R-squared (R2):", r2)
+    results = {}
+    results["Mean Squared Error (MSE)"] = mean_squared_error(y_test, y_pred)
+    results["Root Mean Squared Error (RMSE)"] = np.sqrt(results["Mean Squared Error (MSE)"])
+    results["Mean Absolute Error (MAE)"] = mean_absolute_error(y_test, y_pred)
+    results["R-squared (R2)"] = r2_score(y_test, y_pred)
     
-    return mse, rmse, mae, r2
+    return results
 
 # Display available models
 def display_models(models):
     print("Available Models:")
     for i, model in enumerate(models, 1):
         print(f"{i}. {model}")
-
